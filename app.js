@@ -5,6 +5,9 @@ const server = createServer(app);
 import { Server } from "socket.io";
 const io = new Server(server);
 
+// Keep track of user names and their corresponding sockets
+const users = {};
+
 app.get("/", (req, res) => {
   res.send("<h1>Hello world</h1>");
 });
@@ -13,15 +16,27 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
   console.log("a user connected");
 
+  // Handle user login and store the username and socket
+  socket.on("login", (username) => {
+    users[socket.id] = username;
+    console.log(`${username} logged in.`);
+  });
+
   socket.on("disconnect", () => {
-    console.log("user disconnected");
+    const username = users[socket.id];
+    if (username) {
+      console.log(`${username} disconnected`);
+      delete users[socket.id];
+    }
   });
 
   socket.on("chat message", (msg) => {
-    console.log("message: " + msg);
-
-    // Broadcast message to all clients
-    io.emit("chat message", msg);
+    const username = users[socket.id];
+    if (username) {
+      console.log(`${username} says: ${msg}`);
+      // Broadcast message to all clients along with the username
+      io.emit("chat message", { username, msg });
+    }
   });
 });
 
